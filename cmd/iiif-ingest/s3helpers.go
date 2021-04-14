@@ -2,18 +2,18 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"io/ioutil"
+	"log"
+	"os"
+	"time"
 )
 
 var downloader *s3manager.Downloader
+var s3service *s3.S3
 
 // set up our S3 management objects
 func init() {
@@ -21,6 +21,7 @@ func init() {
 	sess, err := session.NewSession()
 	if err == nil {
 		downloader = s3manager.NewDownloader(sess)
+		s3service  = s3.New(sess)
 	}
 }
 
@@ -35,7 +36,7 @@ func s3download(downloadDir string, bucket string, object string, expectedSize i
 	defer file.Close()
 
 	sourcename := fmt.Sprintf("s3:/%s/%s", bucket, object)
-	log.Printf("Downloading %s to %s", sourcename, file.Name())
+	log.Printf("INFO: downloading %s to %s", sourcename, file.Name())
 
 	start := time.Now()
 	fileSize, err := downloader.Download(file,
@@ -58,8 +59,25 @@ func s3download(downloadDir string, bucket string, object string, expectedSize i
 	}
 
 	duration := time.Since(start)
-	log.Printf("Download of %s complete in %0.2f seconds (%d bytes)", sourcename, duration.Seconds(), fileSize)
+	log.Printf("INFO: download of %s complete in %0.2f seconds (%d bytes)", sourcename, duration.Seconds(), fileSize)
 	return file.Name(), nil
+}
+
+// delete the specified S3 object
+func s3Delete(bucket string, key string) error {
+
+	log.Printf("INFO: deleting s3://%s/%s", bucket, key)
+
+	start := time.Now()
+	_, err := s3service.DeleteObject(&s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
+	if err != nil {
+		log.Printf("ERROR: deleting s3://%s/%s (%s)", bucket, key, err.Error())
+		return err
+	}
+
+	duration := time.Since(start)
+	log.Printf("INFO: delete of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds())
+	return nil
 }
 
 //

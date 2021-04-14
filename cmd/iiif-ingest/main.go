@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 	"log"
 	"os"
+	"path"
+	"strings"
 )
 
 //
@@ -24,12 +27,12 @@ func main() {
 	inQueueHandle, err := aws.QueueHandle(cfg.InQueueName)
 	fatalIfError(err)
 
-	// create the record channel
-	recordsChan := make(chan Notify, cfg.WorkerQueueSize)
+	// create the notification channel
+	notifyChan := make(chan Notify, cfg.WorkerQueueSize)
 
 	// start workers here
 	for w := 1; w <= cfg.Workers; w++ {
-		go worker(w, *cfg, aws, recordsChan)
+		go worker(w, *cfg, notifyChan)
 	}
 
 	for {
@@ -67,14 +70,21 @@ func main() {
 		// check the operation results
 		for ix, op := range opStatus {
 			if op == false {
-				log.Printf("ERROR: message %d failed to delete", ix)
+				log.Printf("WARNING: message %d failed to delete", ix)
 			}
 		}
 
 		// now we can process each of the inbound files
 		for ix, f := range inbound {
-			notify := Notify{ Bucket: f.SourceBucket, BucketKey: f.SourceKey, LocalFile: localNames[ix] }
-			recordsChan <- notify
+			baseName := path.Base( f.SourceKey )
+			fileExt := path.Ext( baseName )
+			convertName := fmt.Sprintf( "%s.%s", strings.TrimSuffix(baseName, fileExt), cfg.ConvertSuffix )
+			notify := Notify{
+				Bucket:        f.SourceBucket,
+				BucketKey:     f.SourceKey,
+				LocalFile:     localNames[ix],
+			    ConvertedFile: fmt.Sprintf( "%s/%s", cfg.ConvertDir, convertName ) }
+			notifyChan <- notify
 		}
 	}
 }

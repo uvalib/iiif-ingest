@@ -27,7 +27,7 @@ func init() {
 
 // taken from https://github.com/awsdocs/aws-doc-sdk-examples/blob/master/go/example_code/s3/s3_download_object.go
 
-func s3download(downloadDir string, bucket string, object string, expectedSize int64) (string, error) {
+func s3download(id int, downloadDir string, bucket string, object string, expectedSize int64) (string, error) {
 
 	file, err := ioutil.TempFile(downloadDir, "")
 	if err != nil {
@@ -36,7 +36,7 @@ func s3download(downloadDir string, bucket string, object string, expectedSize i
 	defer file.Close()
 
 	sourcename := fmt.Sprintf("s3:/%s/%s", bucket, object)
-	log.Printf("INFO: downloading %s to %s", sourcename, file.Name())
+	log.Printf("[worker %d] INFO: downloading %s to %s", id, sourcename, file.Name())
 
 	start := time.Now()
 	fileSize, err := downloader.Download(file,
@@ -59,24 +59,24 @@ func s3download(downloadDir string, bucket string, object string, expectedSize i
 	}
 
 	duration := time.Since(start)
-	log.Printf("INFO: download of %s complete in %0.2f seconds (%d bytes)", sourcename, duration.Seconds(), fileSize)
+	log.Printf("[worker %d] INFO: download of %s complete in %0.2f seconds (%d bytes)", id, sourcename, duration.Seconds(), fileSize)
 	return file.Name(), nil
 }
 
 // delete the specified S3 object
-func s3Delete(bucket string, key string) error {
+func s3Delete(id int, bucket string, key string) error {
 
-	log.Printf("INFO: deleting s3://%s/%s", bucket, key)
+	log.Printf("[worker %d] INFO: deleting s3://%s/%s", id, bucket, key)
 
 	start := time.Now()
 	_, err := s3service.DeleteObject(&s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)})
 	if err != nil {
-		log.Printf("ERROR: deleting s3://%s/%s (%s)", bucket, key, err.Error())
+		log.Printf("[worker %d] ERROR: deleting s3://%s/%s (%s)", id, bucket, key, err.Error())
 		return err
 	}
 
 	duration := time.Since(start)
-	log.Printf("INFO: delete of s3://%s/%s complete in %0.2f seconds", bucket, key, duration.Seconds())
+	log.Printf("[worker %d] INFO: delete of s3://%s/%s complete in %0.2f seconds", id, bucket, key, duration.Seconds())
 	return nil
 }
 

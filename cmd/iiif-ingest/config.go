@@ -24,7 +24,7 @@ func envWithDefault(env string, defaultValue string) string {
 	val, set := os.LookupEnv(env)
 
 	if set == false {
-		log.Printf("environment variable not set: [%s] using default value [%s]", env, defaultValue)
+		log.Printf("[main] INFO: environment variable not set: [%s] using default value [%s]", env, defaultValue)
 		return defaultValue
 	}
 
@@ -35,7 +35,7 @@ func ensureSet(env string) string {
 	val, set := os.LookupEnv(env)
 
 	if set == false {
-		log.Printf("environment variable not set: [%s]", env)
+		log.Printf("[main] ERROR: environment variable not set: [%s]", env)
 		os.Exit(1)
 	}
 
@@ -46,7 +46,7 @@ func ensureSetAndNonEmpty(env string) string {
 	val := ensureSet(env)
 
 	if val == "" {
-		log.Printf("environment variable not set: [%s]", env)
+		log.Printf("[main] ERROR: environment variable not set: [%s]", env)
 		os.Exit(1)
 	}
 

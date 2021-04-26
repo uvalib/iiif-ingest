@@ -38,6 +38,17 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 		convertName := fmt.Sprintf( "%s.%s", strings.TrimSuffix(baseName, fileExt), config.ConvertSuffix )
 	    outputFile := fmt.Sprintf( "%s/%s", config.ConvertDir, convertName )
 
+	    // if we should fail when a converted file already exists
+	    if config.FailOnOverwrite == true {
+			// check to see if the file already exists
+			_, e := os.Stat(outputFile)
+			if e == nil {
+				log.Printf("[worker %d] ERROR: %s already exists", workerId, outputFile)
+				log.Printf("[worker %d] INFO: removing downloaded file %s", workerId, localFile)
+				_ = os.Remove(localFile)
+                continue
+			}
+		}
 	    // convert the file
 	    err = convertFile(workerId, config, notify.BucketKey, localFile, outputFile )
 		fatalIfError(err)

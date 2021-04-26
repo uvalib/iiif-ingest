@@ -18,6 +18,7 @@ type ServiceConfig struct {
 	ConvertOptions     string // the conversion options
 	ConvertDir         string // the conversion directory
 	DeleteAfterConvert bool   // delete the bucket object after conversion
+	FailOnOverwrite    bool   // fail if the converted file will overwrite an existing one
 }
 
 func envWithDefault(env string, defaultValue string) string {
@@ -87,6 +88,7 @@ func LoadConfiguration() *ServiceConfig {
 	cfg.ConvertOptions     = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_OPTS")
 	cfg.ConvertDir         = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_DIR")
     cfg.DeleteAfterConvert = envToBoolean("IIIF_INGEST_DELETE_AFTER_CONVERT")
+	cfg.FailOnOverwrite    = envToBoolean("IIIF_INGEST_FAIL_ON_OVERWRITE")
 
 	log.Printf("[CONFIG] InQueueName          = [%s]", cfg.InQueueName)
 	log.Printf("[CONFIG] PollTimeOut          = [%d]", cfg.PollTimeOut)
@@ -99,6 +101,7 @@ func LoadConfiguration() *ServiceConfig {
 	log.Printf("[CONFIG] ConvertOptions       = [%s]", cfg.ConvertOptions)
 	log.Printf("[CONFIG] ConvertDir           = [%s]", cfg.ConvertDir)
 	log.Printf("[CONFIG] DeleteAfterConvert   = [%t]", cfg.DeleteAfterConvert)
+	log.Printf("[CONFIG] FailOnOverwrite      = [%t]", cfg.FailOnOverwrite)
 
 	return &cfg
 }

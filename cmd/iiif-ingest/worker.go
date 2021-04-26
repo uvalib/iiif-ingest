@@ -33,14 +33,14 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 		log.Printf("[worker %d] INFO: processing %s", workerId, notify.BucketKey )
 
 		// validate the inbound file naming convention
-        err := validateInputName( notify.BucketKey )
+        err := validateInputName( workerId, notify.BucketKey )
 		if err != nil {
 			log.Printf("[worker %d] ERROR: input name %s is invalid (%s)", workerId, notify.BucketKey, err.Error())
 			continue
 		}
 
 		// create the output file name
-		outputFile := generateOutputName( config, notify.BucketKey )
+		outputFile := generateOutputName( workerId, config, notify.BucketKey )
 
 		// if we should fail when a converted file already exists
 		if config.FailOnOverwrite == true {
@@ -53,7 +53,7 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 		}
 
 		// create the target directory tree
-		err = createOutputDirectory( outputFile )
+		err = createOutputDirectory( workerId, outputFile )
 		fatalIfError(err)
 
 		// download the file
@@ -153,7 +153,7 @@ func deleteMessage( workerId int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, 
 }
 
 // generate the output file name based on the input file and configuration
-func generateOutputName ( config ServiceConfig, inputName string ) string {
+func generateOutputName ( workerId int, config ServiceConfig, inputName string ) string {
 
 	// split into path and filename components
 	dirName := path.Dir( inputName )
@@ -168,8 +168,8 @@ func generateOutputName ( config ServiceConfig, inputName string ) string {
 
 	// special case
 	if dirs[ 1 ] == archivesName {
-		dirTree := makeDirTree( convertName )
-		return fmt.Sprintf( "%s/%s/%s/%s", config.ConvertDir, dirs[ 1 ], dirTree, convertName )
+		dirTree := makeDirTree( workerId, convertName )
+		return fmt.Sprintf( "%s/%s/%s/%s", config.ConvertDir, dirs[ 1 ], dirTree, convertName[1:] )
 	} else {
 		return fmt.Sprintf( "%s/%s/%s", config.ConvertDir, dirs[ 1 ], convertName )
 	}
@@ -183,9 +183,9 @@ func generateOutputName ( config ServiceConfig, inputName string ) string {
 //   - filename must match regex xxx
 // otherwise
 //   - filename can be anything
-func validateInputName ( inputName string ) error {
+func validateInputName ( workerId int, inputName string ) error {
 
-	log.Printf("DEBUG: validating input name %s", inputName)
+	log.Printf("[worker %d] DEBUG: validating input name %s", workerId, inputName)
 
 	// split into path and filename components
 	dirName := path.Dir( inputName )
@@ -215,12 +215,12 @@ func validateInputName ( inputName string ) error {
 }
 
 // create the output directory
-func createOutputDirectory ( outputName string ) error {
+func createOutputDirectory ( workerId int, outputName string ) error {
 
 	// split into path and filename components
 	dirName := path.Dir( outputName )
 
-	log.Printf("DEBUG: creating directory %s", dirName)
+	log.Printf("[worker %d] DEBUG: creating directory %s", workerId, dirName)
 
 	// create the directory if appropriate
 	err := os.MkdirAll(dirName, 0755)
@@ -228,7 +228,7 @@ func createOutputDirectory ( outputName string ) error {
 }
 
 // make the target directory tree, we have already validate the filename so know this is safe
-func makeDirTree ( fileName string ) string {
+func makeDirTree ( workerId int, fileName string ) string {
 	fileExt := path.Ext( fileName )
 	noSuffix := strings.TrimSuffix(fileName, fileExt)
 	switch len( noSuffix ) {

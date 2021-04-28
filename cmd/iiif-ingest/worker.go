@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -60,15 +61,22 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 		}
 
 		// download the file
-		localFile, err := s3download(workerId, config.DownloadDir, notify.SourceBucket, notify.BucketKey, notify.ExpectedSize)
+		downloadFile, err := s3download(workerId, config.DownloadDir, notify.SourceBucket, notify.BucketKey, notify.ExpectedSize)
 		if err != nil {
 			log.Printf("[worker %d] ERROR: failed to download %s", workerId, notify.BucketKey)
 			continue
 		}
 
 	    // convert the file
-	    err = convertFile(workerId, config, notify.BucketKey, localFile, outputFile )
+	    workFile, err := convertFile(workerId, config, notify.BucketKey, downloadFile)
 		if err != nil {
+			continue
+		}
+
+		// move the file to the correct location
+		err = os.Rename(workFile, outputFile)
+		if err != nil {
+			log.Printf("[worker %d] ERROR: failed to move %s to %s", workerId, workFile, outputFile)
 			continue
 		}
 
@@ -88,7 +96,7 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 			log.Printf("[worker %d] ERROR: failed to delete a processed message", workerId)
 			continue
 		}
-		
+
 		duration := time.Since(start)
 		log.Printf("[worker %d] INFO: processing %s complete in %0.2f seconds", workerId, notify.BucketKey, duration.Seconds())
 	}
@@ -96,7 +104,15 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 	// should never get here
 }
 
-func convertFile(workerId int, config ServiceConfig, bucketKey string, inputFile string, outputFile string ) error {
+func convertFile(workerId int, config ServiceConfig, bucketKey string, inputFile string ) ( string, error ) {
+
+	// create a tempfile
+	f, err := ioutil.TempFile(config.ConvertDir, "")
+	if err != nil {
+		return "", err
+	}
+	_ = f.Close()
+	outputFile := f.Name()
 
 	// do the conversion
 	params := strings.Split( config.ConvertOptions, " " )
@@ -130,7 +146,7 @@ func convertFile(workerId int, config ServiceConfig, bucketKey string, inputFile
 		_ = os.Remove(outputFile)
 
 		// return the error
-		return err
+		return "", err
 	}
 
 	// cleanup and return
@@ -142,7 +158,7 @@ func convertFile(workerId int, config ServiceConfig, bucketKey string, inputFile
 	_ = os.Remove(inputFile)
 
 	// all good
-	return nil
+	return outputFile, nil
 }
 
 func deleteMessage( workerId int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, receiptHandle awssqs.ReceiptHandle ) error {

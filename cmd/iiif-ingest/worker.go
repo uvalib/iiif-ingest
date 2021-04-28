@@ -107,7 +107,7 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 func convertFile(workerId int, config ServiceConfig, bucketKey string, inputFile string ) ( string, error ) {
 
 	// create a tempfile
-	f, err := ioutil.TempFile(config.ConvertDir, "")
+	f, err := ioutil.TempFile(config.LocalWorkDir, "")
 	if err != nil {
 		return "", err
 	}

@@ -54,27 +54,39 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 
 		// create the target directory tree
 		err = createOutputDirectory( workerId, outputFile )
-		fatalIfError(err)
+		if err != nil {
+			continue
+		}
 
 		// download the file
 		localFile, err := s3download(workerId, config.DownloadDir, notify.SourceBucket, notify.BucketKey, notify.ExpectedSize)
-		fatalIfError(err)
+		if err != nil {
+			log.Printf("[worker %d] ERROR: failed to download %s", workerId, notify.BucketKey)
+			continue
+		}
 
 	    // convert the file
 	    err = convertFile(workerId, config, notify.BucketKey, localFile, outputFile )
-		fatalIfError(err)
+		if err != nil {
+			continue
+		}
 
 	    // should we delete the bucket contents
 		if config.DeleteAfterConvert == true {
 			// bucket file has been processed, remove it
 			log.Printf("[worker %d] INFO: removing S3 object %s/%s", workerId, notify.SourceBucket, notify.BucketKey)
 			err = s3Delete(workerId, notify.SourceBucket, notify.BucketKey)
-			fatalIfError(err)
+			if err != nil {
+				continue
+			}
 		}
 
 		// delete the inbound message
 		err = deleteMessage(workerId, aws, queue, notify.ReceiptHandle )
-		fatalIfError(err)
+		if err != nil {
+			log.Printf("[worker %d] ERROR: failed to delete a processed message", workerId)
+			continue
+		}
 	}
 
 	// should never get here
@@ -224,7 +236,12 @@ func createOutputDirectory ( workerId int, outputName string ) error {
 
 	// create the directory if appropriate
 	err := os.MkdirAll(dirName, 0755)
-	return err
+	if err != nil {
+		log.Printf("[worker %d] ERROR: failed to create output directory %s", workerId, dirName)
+		return err
+	}
+
+	return nil
 }
 
 // make the target directory tree, we have already validate the filename so know this is safe

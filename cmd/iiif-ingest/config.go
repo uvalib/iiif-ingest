@@ -10,7 +10,7 @@ import (
 type ServiceConfig struct {
 	InQueueName        string // SQS queue name for inbound documents
 	PollTimeOut        int64  // the SQS queue timeout (in seconds)
-	DownloadDir        string // the S3 file download directory (local)
+	LocalWorkDir       string // the local work directory
 	WorkerQueueSize    int    // the inbound message queue size to feed the workers
 	Workers            int    // the number of worker processes
 	ConvertBinary      string // the conversion binary
@@ -78,7 +78,7 @@ func LoadConfiguration() *ServiceConfig {
 
 	cfg.InQueueName = ensureSetAndNonEmpty("IIIF_INGEST_IN_QUEUE")
 	cfg.PollTimeOut = int64(envToInt("IIIF_INGEST_QUEUE_POLL_TIMEOUT"))
-	cfg.DownloadDir = ensureSetAndNonEmpty("IIIF_INGEST_DOWNLOAD_DIR")
+	cfg.LocalWorkDir = ensureSetAndNonEmpty("IIIF_INGEST_WORK_DIR")
 	cfg.WorkerQueueSize = envToInt("IIIF_INGEST_WORK_QUEUE_SIZE")
 	cfg.Workers = envToInt("IIIF_INGEST_WORKERS")
 
@@ -92,7 +92,7 @@ func LoadConfiguration() *ServiceConfig {
 
 	log.Printf("[CONFIG] InQueueName          = [%s]", cfg.InQueueName)
 	log.Printf("[CONFIG] PollTimeOut          = [%d]", cfg.PollTimeOut)
-	log.Printf("[CONFIG] DownloadDir          = [%s]", cfg.DownloadDir)
+	log.Printf("[CONFIG] LocalWorkDir         = [%s]", cfg.LocalWorkDir)
 	log.Printf("[CONFIG] WorkerQueueSize      = [%d]", cfg.WorkerQueueSize)
 	log.Printf("[CONFIG] Workers              = [%d]", cfg.Workers)
 

@@ -61,7 +61,7 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 		}
 
 		// download the file
-		downloadFile, err := s3download(workerId, config.DownloadDir, notify.SourceBucket, notify.BucketKey, notify.ExpectedSize)
+		downloadFile, err := s3download(workerId, config.LocalWorkDir, notify.SourceBucket, notify.BucketKey, notify.ExpectedSize)
 		if err != nil {
 			log.Printf("[worker %d] ERROR: failed to download %s (%s)", workerId, notify.BucketKey, err.Error())
 			continue

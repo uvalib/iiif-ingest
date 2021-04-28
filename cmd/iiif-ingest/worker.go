@@ -256,7 +256,7 @@ func createOutputDirectory ( workerId int, outputName string ) error {
 	log.Printf("[worker %d] DEBUG: creating directory %s", workerId, dirName)
 
 	// create the directory if appropriate
-	err := os.MkdirAll(dirName, 0777)
+	err := os.MkdirAll(dirName, 0755)
 	if err != nil {
 		log.Printf("[worker %d] ERROR: failed to create output directory %s (%s)", workerId, dirName, err.Error())
 		return err

@@ -30,6 +30,7 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 		// wait for an inbound file
 		notify = <-notifies
 
+		start := time.Now()
 		log.Printf("[worker %d] INFO: processing %s", workerId, notify.BucketKey )
 
 		// validate the inbound file naming convention
@@ -87,6 +88,9 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 			log.Printf("[worker %d] ERROR: failed to delete a processed message", workerId)
 			continue
 		}
+		
+		duration := time.Since(start)
+		log.Printf("[worker %d] INFO: processing %s complete in %0.2f seconds", workerId, notify.BucketKey, duration.Seconds())
 	}
 
 	// should never get here
@@ -121,7 +125,8 @@ func convertFile(workerId int, config ServiceConfig, bucketKey string, inputFile
 		if len( output ) != 0 {
 			log.Printf("[worker %d] ERROR: %s", workerId, output )
 		}
-		// remove the output file and ignore any errors
+		// remove the input and output files and ignore any errors
+		_ = os.Remove(inputFile)
 		_ = os.Remove(outputFile)
 
 		// return the error

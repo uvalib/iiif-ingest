@@ -46,6 +46,8 @@ func s3download(workerId int, downloadDir string, bucket string, object string, 
 		})
 
 	if err != nil {
+		// remove the file and ignore errors
+		_ = os.Remove(file.Name())
 		return "", err
 	}
 
@@ -53,7 +55,7 @@ func s3download(workerId int, downloadDir string, bucket string, object string, 
 	// we validate the expected file size against the actually downloaded size
 	if expectedSize != fileSize {
 
-		// remove the file
+		// remove the file and ignore errors
 		_ = os.Remove(file.Name())
 		return "", fmt.Errorf("download failure. expected %d bytes, received %d bytes", expectedSize, fileSize)
 	}

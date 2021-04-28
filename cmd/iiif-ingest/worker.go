@@ -119,7 +119,7 @@ func convertFile(workerId int, config ServiceConfig, bucketKey string, inputFile
 	if err != nil {
 		log.Printf("[worker %d] ERROR: processing %s (%s)", workerId, bucketKey, err.Error() )
 		if len( output ) != 0 {
-			log.Printf("[worker %d] %s", workerId, output )
+			log.Printf("[worker %d] ERROR: %s", workerId, output )
 		}
 		// remove the output file and ignore any errors
 		_ = os.Remove(outputFile)

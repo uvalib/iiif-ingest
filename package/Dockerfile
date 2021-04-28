@@ -15,10 +15,10 @@ RUN make linux
 FROM debian:buster-slim
 
 # update the packages
-RUN apt-get -y update && apt-get -y install ca-certificates imagemagick-6.q16
+RUN apt-get -y update && apt-get -y install procps htop ca-certificates imagemagick-6.q16
 
 # Create the run user and group
-RUN useradd webservice && adduser webservice webservice
+#RUN useradd webservice && adduser webservice webservice
 
 # set the timezone appropriatly
 ENV TZ=UTC
@@ -30,7 +30,7 @@ WORKDIR $APP_HOME
 
 # Create necessary directories
 RUN mkdir -p $APP_HOME $APP_HOME/bin $APP_HOME/scripts
-RUN chown -R webservice $APP_HOME && chgrp -R webservice $APP_HOME
+#RUN chown -R webservice $APP_HOME && chgrp -R webservice $APP_HOME
 
 # run command
 CMD scripts/entry.sh
@@ -41,14 +41,14 @@ COPY package/scripts/entry.sh $APP_HOME/scripts/entry.sh
 COPY --from=builder /build/bin/iiif-ingest.linux $APP_HOME/bin/iiif-ingest
 
 # Ensure permissions are correct
-RUN chown webservice:webservice /home/webservice/.profile $APP_HOME/scripts/entry.sh $APP_HOME/bin/iiif-ingest && chmod 755 /home/webservice/.profile $APP_HOME/scripts/entry.sh $APP_HOME/bin/iiif-ingest
+#RUN chown webservice:webservice /home/webservice/.profile $APP_HOME/scripts/entry.sh $APP_HOME/bin/iiif-ingest && chmod 755 /home/webservice/.profile $APP_HOME/scripts/entry.sh $APP_HOME/bin/iiif-ingest
 
 # Add the build tag
 ARG BUILD_TAG
 RUN test -n "$BUILD_TAG" && touch $APP_HOME/buildtag.build-$BUILD_TAG || touch $APP_HOME/buildtag.build-0
 
 # Specify the user
-USER webservice
+#USER webservice
 
 #
 # end of file

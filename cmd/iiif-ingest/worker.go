@@ -63,7 +63,7 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 		// download the file
 		downloadFile, err := s3download(workerId, config.DownloadDir, notify.SourceBucket, notify.BucketKey, notify.ExpectedSize)
 		if err != nil {
-			log.Printf("[worker %d] ERROR: failed to download %s", workerId, notify.BucketKey)
+			log.Printf("[worker %d] ERROR: failed to download %s (%s)", workerId, notify.BucketKey, err.Error())
 			continue
 		}
 
@@ -76,7 +76,7 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 		// move the file to the correct location
 		err = os.Rename(workFile, outputFile)
 		if err != nil {
-			log.Printf("[worker %d] ERROR: failed to move %s to %s", workerId, workFile, outputFile)
+			log.Printf("[worker %d] ERROR: failed to move %s to %s (%s)", workerId, workFile, outputFile, err.Error())
 			continue
 		}
 
@@ -93,7 +93,7 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 		// delete the inbound message
 		err = deleteMessage(workerId, aws, queue, notify.ReceiptHandle )
 		if err != nil {
-			log.Printf("[worker %d] ERROR: failed to delete a processed message", workerId)
+			log.Printf("[worker %d] ERROR: failed to delete a processed message (%s)", workerId, err.Error())
 			continue
 		}
 
@@ -258,7 +258,7 @@ func createOutputDirectory ( workerId int, outputName string ) error {
 	// create the directory if appropriate
 	err := os.MkdirAll(dirName, 0755)
 	if err != nil {
-		log.Printf("[worker %d] ERROR: failed to create output directory %s", workerId, dirName)
+		log.Printf("[worker %d] ERROR: failed to create output directory %s (%s)", workerId, dirName, err.Error())
 		return err
 	}
 

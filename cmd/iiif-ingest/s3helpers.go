@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"time"
 )
 
@@ -29,7 +30,7 @@ func init() {
 
 func s3download(workerId int, downloadDir string, bucket string, object string, expectedSize int64) (string, error) {
 
-	file, err := ioutil.TempFile(downloadDir, "")
+	file, err := ioutil.TempFile(downloadDir, fmt.Sprintf( "*%s", path.Ext( object )))
 	if err != nil {
 		return "", err
 	}

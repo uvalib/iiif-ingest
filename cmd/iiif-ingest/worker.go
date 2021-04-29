@@ -74,7 +74,7 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 		}
 
 		// copy the file to the correct location and delete the original
-		err = copyFile(workFile, outputFile)
+		err = copyFile(workerId, workFile, outputFile)
 		_ = os.Remove(workFile)
 		if err != nil {
 			log.Printf("[worker %d] ERROR: failed to copy %s to %s (%s)", workerId, workFile, outputFile, err.Error())
@@ -107,8 +107,8 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 
 func convertFile(workerId int, config ServiceConfig, bucketKey string, inputFile string ) ( string, error ) {
 
-	// create a tempfile
-	f, err := ioutil.TempFile(config.LocalWorkDir, "")
+	// create a temp file
+	f, err := ioutil.TempFile(config.LocalWorkDir, fmt.Sprintf( "*.%s", config.ConvertSuffix))
 	if err != nil {
 		return "", err
 	}
@@ -297,7 +297,10 @@ func makeDirTree ( workerId int, fileName string ) string {
 
 // copy the file from the old location to the new one... we cannot use os.Rename as this only works withing a
 // single device
-func copyFile( oldLocation, newLocation string) error {
+func copyFile( workerId int, oldLocation, newLocation string) error {
+
+	log.Printf("[worker %d] INFO: copying %s to %s", workerId, oldLocation, newLocation)
+
 	i, err := os.Open(oldLocation)
 	if err != nil {
 		return err

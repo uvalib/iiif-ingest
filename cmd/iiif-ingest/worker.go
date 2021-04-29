@@ -73,10 +73,11 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 			continue
 		}
 
-		// move the file to the correct location
-		err = os.Rename(workFile, outputFile)
+		// copy the file to the correct location and delete the original
+		err = copyFile(workFile, outputFile)
+		_ = os.Remove(workFile)
 		if err != nil {
-			log.Printf("[worker %d] ERROR: failed to move %s to %s (%s)", workerId, workFile, outputFile, err.Error())
+			log.Printf("[worker %d] ERROR: failed to copy %s to %s (%s)", workerId, workFile, outputFile, err.Error())
 			continue
 		}
 
@@ -152,6 +153,11 @@ func convertFile(workerId int, config ServiceConfig, bucketKey string, inputFile
 	// cleanup and return
 	duration := time.Since(start)
 	log.Printf("[worker %d] INFO: conversion complete in %0.2f seconds", workerId, duration.Seconds())
+
+	// if we have some output, log it
+	if len( output ) != 0 {
+		log.Printf("[worker %d] DEBUG: conversion output [%s]", workerId, output )
+	}
 
 	// original file has been converted, remove it and ignore any errors
 	log.Printf("[worker %d] INFO: removing downloaded file %s", workerId, inputFile)
@@ -287,6 +293,23 @@ func makeDirTree ( workerId int, fileName string ) string {
 	// should never happen
 	fatalIfError( fmt.Errorf( "violated invariant with file %s", fileName))
 	return ""  // should not need this for the compiler
+}
+
+// copy the file from the old location to the new one... we cannot use os.Rename as this only works withing a
+// single device
+func copyFile( oldLocation, newLocation string) error {
+	i, err := os.Open(oldLocation)
+	if err != nil {
+		return err
+	}
+	defer i.Close()
+	o, err := os.Create(newLocation)
+	if err != nil {
+		return err
+	}
+	defer o.Close()
+	_, err = o.ReadFrom(i)
+	return err
 }
 
 //

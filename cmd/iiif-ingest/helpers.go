@@ -4,7 +4,7 @@ import "log"
 
 func fatalIfError(err error) {
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf( "FATAL ERROR: %s", err.Error())
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 	"log"
+	"net/url"
 	"time"
 )
 
@@ -38,9 +39,16 @@ func getInboundNotification(config ServiceConfig, aws awssqs.AWS_SQS, inQueueHan
 
 			// we have an object to download
 			if len(newS3objects) == 1 {
+
+				// some file names may be HTML encoded... un-encode them here...
+				key, err := url.QueryUnescape(newS3objects[0].S3.Object.Key)
+				if err != nil {
+					return nil, "", err
+				}
+
 				inboundFile := InboundFile{
 					SourceBucket: newS3objects[0].S3.Bucket.Name,
-					SourceKey:    newS3objects[0].S3.Object.Key,
+					SourceKey:    key,
 					ObjectSize:   newS3objects[0].S3.Object.Size}
 
 				return &inboundFile, messages[0].ReceiptHandle, nil

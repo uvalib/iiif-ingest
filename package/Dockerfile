@@ -1,7 +1,7 @@
 #
 # build the target application
 #
-FROM golang:1.16.5-alpine3.13 as builder
+FROM golang:1.17-alpine3.13 as builder
 RUN apk update && apk upgrade && apk add make
 
 WORKDIR /build
@@ -15,7 +15,7 @@ RUN make linux
 FROM debian:buster-slim
 
 # update the packages
-RUN apt-get -y update && apt-get -y install procps htop ca-certificates imagemagick-6.q16
+RUN apt-get -y update && apt-get -y upgrade && apt-get -y install procps htop ca-certificates imagemagick-6.q16
 
 # Create the run user and group
 RUN groupadd -g 18570 docker && useradd -u 1984 -g docker docker

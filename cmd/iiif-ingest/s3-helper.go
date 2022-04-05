@@ -22,7 +22,7 @@ func init() {
 	sess, err := session.NewSession()
 	if err == nil {
 		downloader = s3manager.NewDownloader(sess)
-		s3service  = s3.New(sess)
+		s3service = s3.New(sess)
 	}
 }
 
@@ -30,7 +30,7 @@ func init() {
 
 func s3download(workerId int, downloadDir string, bucket string, object string, expectedSize int64) (string, error) {
 
-	file, err := ioutil.TempFile(downloadDir, fmt.Sprintf( "*%s", path.Ext( object )))
+	file, err := ioutil.TempFile(downloadDir, fmt.Sprintf("*%s", path.Ext(object)))
 	if err != nil {
 		return "", err
 	}

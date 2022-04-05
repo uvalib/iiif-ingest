@@ -83,12 +83,12 @@ func LoadConfiguration() *ServiceConfig {
 	cfg.Workers = envToInt("IIIF_INGEST_WORKERS")
 
 	// conversion configuration
-	cfg.ConvertBinary      = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_BIN")
-	cfg.ConvertSuffix      = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_SUFFIX")
-	cfg.ConvertOptions     = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_OPTS")
-	cfg.ConvertDir         = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_DIR")
-    cfg.DeleteAfterConvert = envToBoolean("IIIF_INGEST_DELETE_AFTER_CONVERT")
-	cfg.FailOnOverwrite    = envToBoolean("IIIF_INGEST_FAIL_ON_OVERWRITE")
+	cfg.ConvertBinary = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_BIN")
+	cfg.ConvertSuffix = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_SUFFIX")
+	cfg.ConvertOptions = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_OPTS")
+	cfg.ConvertDir = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_DIR")
+	cfg.DeleteAfterConvert = envToBoolean("IIIF_INGEST_DELETE_AFTER_CONVERT")
+	cfg.FailOnOverwrite = envToBoolean("IIIF_INGEST_FAIL_ON_OVERWRITE")
 
 	log.Printf("[CONFIG] InQueueName          = [%s]", cfg.InQueueName)
 	log.Printf("[CONFIG] PollTimeOut          = [%d]", cfg.PollTimeOut)

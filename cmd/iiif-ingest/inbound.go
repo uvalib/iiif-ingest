@@ -14,7 +14,7 @@ type InboundFile struct {
 	ObjectSize   int64
 }
 
-func getInboundNotification(config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle awssqs.QueueHandle) ( *InboundFile, awssqs.ReceiptHandle, error) {
+func getInboundNotification(config ServiceConfig, aws awssqs.AWS_SQS, inQueueHandle awssqs.QueueHandle) (*InboundFile, awssqs.ReceiptHandle, error) {
 
 	for {
 

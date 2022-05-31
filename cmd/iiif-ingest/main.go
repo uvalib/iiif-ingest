@@ -1,9 +1,11 @@
 package main
 
 import (
-	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 	"log"
 	"os"
+
+	"github.com/uvalib/uva-aws-s3-sdk/uva-s3"
+	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
 //
@@ -16,8 +18,12 @@ func main() {
 	// Get config params and use them to init service context. Any issues are fatal
 	cfg := LoadConfiguration()
 
-	// load our AWS_SQS helper object
+	// load our AWS sqs helper object
 	aws, err := awssqs.NewAwsSqs(awssqs.AwsSqsConfig{MessageBucketName: " "})
+	fatalIfError(err)
+
+	// load our AWS s3 helper object
+	s3Svc, err := uva_s3.NewUvaS3(uva_s3.UvaS3Config{Logging: true})
 	fatalIfError(err)
 
 	// get the queue handles from the queue name
@@ -29,7 +35,7 @@ func main() {
 
 	// start workers here
 	for w := 1; w <= cfg.Workers; w++ {
-		go worker(w, *cfg, aws, inQueueHandle, notifyChan)
+		go worker(w, *cfg, aws, s3Svc, inQueueHandle, notifyChan)
 	}
 
 	for {

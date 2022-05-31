@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,6 +10,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/uvalib/uva-aws-s3-sdk/uva-s3"
+	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
 // Notify - our worker notification structure
@@ -24,7 +26,7 @@ type Notify struct {
 // special case handling name
 var archivesName = "archives"
 
-func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, notifies <-chan Notify) {
+func worker(workerId int, config ServiceConfig, sqsSvc awssqs.AWS_SQS, s3Svc uva_s3.UvaS3, queue awssqs.QueueHandle, notifies <-chan Notify) {
 
 	var notify Notify
 	for {
@@ -60,8 +62,19 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 			continue
 		}
 
+		// create temp file
+		tmp, err := ioutil.TempFile(config.LocalWorkDir, "")
+		if err != nil {
+			log.Printf("[worker %d] ERROR: failed to create temp file (%s)", workerId, err.Error())
+			continue
+		}
+
+		tmp.Close()
+		downloadFile := tmp.Name()
+
 		// download the file
-		downloadFile, err := s3download(workerId, config.LocalWorkDir, notify.SourceBucket, notify.BucketKey, notify.ExpectedSize)
+		o := uva_s3.NewUvaS3Object(notify.SourceBucket, notify.BucketKey)
+		err = s3Svc.GetToFile(o, downloadFile)
 		if err != nil {
 			log.Printf("[worker %d] ERROR: failed to download %s (%s)", workerId, notify.BucketKey, err.Error())
 			continue
@@ -85,14 +98,14 @@ func worker(workerId int, config ServiceConfig, aws awssqs.AWS_SQS, queue awssqs
 		if config.DeleteAfterConvert == true {
 			// bucket file has been processed, remove it
 			log.Printf("[worker %d] INFO: removing S3 object %s/%s", workerId, notify.SourceBucket, notify.BucketKey)
-			err = s3Delete(workerId, notify.SourceBucket, notify.BucketKey)
+			err = s3Svc.DeleteObject(o)
 			if err != nil {
 				continue
 			}
 		}
 
 		// delete the inbound message
-		err = deleteMessage(workerId, aws, queue, notify.ReceiptHandle)
+		err = deleteMessage(workerId, sqsSvc, queue, notify.ReceiptHandle)
 		if err != nil {
 			log.Printf("[worker %d] ERROR: failed to delete a processed message (%s)", workerId, err.Error())
 			continue

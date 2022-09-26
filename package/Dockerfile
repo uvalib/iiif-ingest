@@ -12,7 +12,7 @@ RUN make linux
 #
 # build the target container
 #
-FROM debian:buster-slim
+FROM public.ecr.aws/docker/library/debian:buster-slim
 
 # update the packages
 RUN apt-get -y update && apt-get -y upgrade && apt-get -y install procps htop ca-certificates imagemagick-6.q16

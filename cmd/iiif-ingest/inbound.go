@@ -21,7 +21,13 @@ func getInboundNotification(config ServiceConfig, aws awssqs.AWS_SQS, inQueueHan
 		// get the next message if one is available
 		messages, err := aws.BatchMessageGet(inQueueHandle, 1, time.Duration(config.PollTimeOut)*time.Second)
 		if err != nil {
-			return nil, "", err
+			log.Printf("ERROR: during message get (%s), sleeping and retrying", err.Error())
+
+			// sleep for a while
+			time.Sleep(1 * time.Second)
+
+			// and try again
+			continue
 		}
 
 		// did we get anything to process
@@ -62,9 +68,7 @@ func getInboundNotification(config ServiceConfig, aws awssqs.AWS_SQS, inQueueHan
 	}
 }
 
-//
 // turn a message received from the inbound queue into a list of zero or more new S3 objects
-//
 func decodeS3Event(message awssqs.Message) ([]S3EventRecord, error) {
 
 	events := Events{}

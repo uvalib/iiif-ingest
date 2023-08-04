@@ -28,7 +28,7 @@ type ServiceConfig struct {
 	DeleteSource   bool   // delete the bucket object after conversion
 
 	// output/naming configuration
-	OutputRoot         string   // the output root directory
+	OutputFSRoot       string   // the output root directory
 	OutputBucket       string   // the output bucket
 	InputNameRegex     []string // the list of possible input name regular expressions
 	OutputNameTemplate []string // the list of corresponding output name templates
@@ -103,7 +103,7 @@ func LoadConfiguration() *ServiceConfig {
 	cfg.DeleteSource = envToBoolean("IIIF_INGEST_DELETE_SOURCE")
 
 	// output configuration
-	cfg.OutputRoot = envWithDefault("IIIF_INGEST_OUTPUT_ROOT", "")
+	cfg.OutputFSRoot = envWithDefault("IIIF_INGEST_OUTPUT_FS_ROOT", "")
 	cfg.OutputBucket = envWithDefault("IIIF_INGEST_OUTPUT_BUCKET", "")
 
 	for ix := 0; ix < maxNameRegex; ix++ {
@@ -143,7 +143,7 @@ func LoadConfiguration() *ServiceConfig {
 	log.Printf("[config] DeleteSource         = [%t]", cfg.DeleteSource)
 
 	// output configuration
-	log.Printf("[config] OutputRoot           = [%s]", cfg.OutputRoot)
+	log.Printf("[config] OutputFSRoot           = [%s]", cfg.OutputFSRoot)
 	log.Printf("[config] OutputBucket         = [%s]", cfg.OutputBucket)
 
 	for ix, _ := range cfg.InputNameRegex {
@@ -151,12 +151,12 @@ func LoadConfiguration() *ServiceConfig {
 	}
 
 	// validate output target values
-	if len(cfg.OutputRoot) == 0 && len(cfg.OutputBucket) == 0 {
+	if len(cfg.OutputFSRoot) == 0 && len(cfg.OutputBucket) == 0 {
 		log.Printf("[main] ERROR: must specify output root (IIIF_INGEST_OUTPUT_ROOT) or output bucket (IIIF_INGEST_OUTPUT_BUCKET)")
 		os.Exit(1)
 	}
 
-	if len(cfg.OutputRoot) != 0 && len(cfg.OutputBucket) != 0 {
+	if len(cfg.OutputFSRoot) != 0 && len(cfg.OutputBucket) != 0 {
 		log.Printf("[main] ERROR: cannot specify output root (IIIF_INGEST_OUTPUT_ROOT) and output bucket (IIIF_INGEST_OUTPUT_BUCKET)")
 		os.Exit(1)
 	}

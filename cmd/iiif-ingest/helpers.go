@@ -80,6 +80,24 @@ func generateOutputName(workerId int, config ServiceConfig, inputName string) st
 	return "unknown"
 }
 
+// create the output directory
+func createOutputDirectory(workerId int, outputName string) error {
+
+	// split into path and filename components
+	dirName := path.Dir(outputName)
+
+	log.Printf("[worker %d] DEBUG: creating directory %s", workerId, dirName)
+
+	// create the directory if appropriate
+	err := os.MkdirAll(dirName, 0755)
+	if err != nil {
+		log.Printf("[worker %d] ERROR: failed to create output directory %s (%s)", workerId, dirName, err.Error())
+		return err
+	}
+
+	return nil
+}
+
 // copy the file from the old location to the new one... we cannot use os.Rename as this only works withing a
 // single device
 func copyFile(workerId int, oldLocation, newLocation string) error {

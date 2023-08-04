@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 	"time"
 
@@ -42,10 +41,13 @@ func worker(workerId int, config ServiceConfig, sqsSvc awssqs.AWS_SQS, s3Svc uva
 		// create the output file name
 		outputFile := generateOutputName(workerId, config, notify.BucketKey)
 
-		// create the target directory tree
-		err = createOutputDirectory(workerId, outputFile)
-		if err != nil {
-			continue
+		// create the target directory tree if we are outputting to a local filesystem
+		if len(config.OutputFSRoot) != 0 {
+			fullOutputFile := fmt.Sprintf("%s/%s", config.OutputFSRoot, outputFile)
+			err = createOutputDirectory(workerId, fullOutputFile)
+			if err != nil {
+				continue
+			}
 		}
 
 		// create temp file
@@ -72,12 +74,25 @@ func worker(workerId int, config ServiceConfig, sqsSvc awssqs.AWS_SQS, s3Svc uva
 			continue
 		}
 
-		// copy the file to the correct location and delete the original
-		err = copyFile(workerId, workFile, outputFile)
-		_ = os.Remove(workFile)
-		if err != nil {
-			log.Printf("[worker %d] ERROR: failed to copy %s to %s (%s)", workerId, workFile, outputFile, err.Error())
-			continue
+		// if we are outputting to a local filesystem
+		if len(config.OutputFSRoot) != 0 {
+			fullOutputFile := fmt.Sprintf("%s/%s", config.OutputFSRoot, outputFile)
+			// copy the file to the correct location and delete the original
+			err = copyFile(workerId, workFile, fullOutputFile)
+			_ = os.Remove(workFile)
+			if err != nil {
+				log.Printf("[worker %d] ERROR: failed to copy %s to %s (%s)", workerId, workFile, outputFile, err.Error())
+				continue
+			}
+		} else {
+			// we are outputting to a bucket
+			o := uva_s3.NewUvaS3Object(config.OutputBucket, outputFile)
+			err := s3Svc.PutFromFile(o, workFile)
+			_ = os.Remove(workFile)
+			if err != nil {
+				log.Printf("[worker %d] ERROR: failed to upload %s to s3://%s/%s (%s)", workerId, workFile, config.OutputBucket, outputFile, err.Error())
+				continue
+			}
 		}
 
 		// should we delete the bucket contents
@@ -187,24 +202,6 @@ func deleteMessage(workerId int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, r
 	}
 
 	// basically everything OK
-	return nil
-}
-
-// create the output directory
-func createOutputDirectory(workerId int, outputName string) error {
-
-	// split into path and filename components
-	dirName := path.Dir(outputName)
-
-	log.Printf("[worker %d] DEBUG: creating directory %s", workerId, dirName)
-
-	// create the directory if appropriate
-	err := os.MkdirAll(dirName, 0755)
-	if err != nil {
-		log.Printf("[worker %d] ERROR: failed to create output directory %s (%s)", workerId, dirName, err.Error())
-		return err
-	}
-
 	return nil
 }
 

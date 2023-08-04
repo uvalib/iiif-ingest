@@ -10,6 +10,7 @@ import (
 )
 
 var maxNameRegex = 32
+var maxConvertOptions = 32
 
 // ServiceConfig defines all the service configuration parameters
 type ServiceConfig struct {
@@ -22,10 +23,10 @@ type ServiceConfig struct {
 	Workers         int    // the number of worker processes
 
 	// conversion configuration
-	ConvertBinary  string // the conversion binary
-	ConvertSuffix  string // the suffix of converyed files
-	ConvertOptions string // the conversion options
-	DeleteSource   bool   // delete the bucket object after conversion
+	ConvertBinary  string            // the conversion binary
+	ConvertSuffix  string            // the suffix of converyed files
+	DeleteSource   bool              // delete the bucket object after conversion
+	ConvertOptions map[string]string // the conversion options per filetype
 
 	// output/naming configuration
 	OutputFSRoot       string   // the output root directory
@@ -99,8 +100,24 @@ func LoadConfiguration() *ServiceConfig {
 	// conversion configuration
 	cfg.ConvertBinary = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_BIN")
 	cfg.ConvertSuffix = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_SUFFIX")
-	cfg.ConvertOptions = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_OPTS")
 	cfg.DeleteSource = envToBoolean("IIIF_INGEST_DELETE_SOURCE")
+
+	cfg.ConvertOptions = make(map[string]string)
+	for ix := 0; ix < maxConvertOptions; ix++ {
+		env := fmt.Sprintf("IIIF_INGEST_CONVERT_OPTS_%02d", ix+1)
+		val, set := os.LookupEnv(env)
+		if set == true {
+			s := strings.SplitN(val, "=", 2)
+			if len(s) == 2 {
+				cfg.ConvertOptions[strings.TrimSpace(s[0])] = strings.TrimSpace(s[1])
+			} else {
+				log.Printf("[main] ERROR: incorrectly formatted '%s' value (%s)", env, val)
+				os.Exit(1)
+			}
+		} else {
+			break
+		}
+	}
 
 	// output configuration
 	cfg.OutputFSRoot = envWithDefault("IIIF_INGEST_OUTPUT_FS_ROOT", "")
@@ -110,7 +127,7 @@ func LoadConfiguration() *ServiceConfig {
 		env := fmt.Sprintf("IIIF_INGEST_NAME_MAP_%02d", ix+1)
 		val, set := os.LookupEnv(env)
 		if set == true {
-			s := strings.Split(val, "=")
+			s := strings.SplitN(val, "=", 2)
 			if len(s) == 2 {
 				// ensure the regex compiles
 				_, err := regexp.Compile(strings.TrimSpace(s[0]))
@@ -139,15 +156,35 @@ func LoadConfiguration() *ServiceConfig {
 	// conversion configuration
 	log.Printf("[config] ConvertBinary        = [%s]", cfg.ConvertBinary)
 	log.Printf("[config] ConvertSuffix        = [%s]", cfg.ConvertSuffix)
-	log.Printf("[config] ConvertOptions       = [%s]", cfg.ConvertOptions)
 	log.Printf("[config] DeleteSource         = [%t]", cfg.DeleteSource)
 
+	for k, v := range cfg.ConvertOptions {
+		log.Printf("[config] Convert options map  = [%s ==> %s]", k, v)
+	}
+
 	// output configuration
-	log.Printf("[config] OutputFSRoot           = [%s]", cfg.OutputFSRoot)
+	log.Printf("[config] OutputFSRoot         = [%s]", cfg.OutputFSRoot)
 	log.Printf("[config] OutputBucket         = [%s]", cfg.OutputBucket)
 
 	for ix, _ := range cfg.InputNameRegex {
-		log.Printf("[config] Input name map %02d    = [%s -> %s]", ix+1, cfg.InputNameRegex[ix], cfg.OutputNameTemplate[ix])
+		log.Printf("[config] Input name map %02d    = [%s ==> %s]", ix+1, cfg.InputNameRegex[ix], cfg.OutputNameTemplate[ix])
+	}
+
+	if len(cfg.ConvertOptions) == 0 {
+		log.Printf("[main] ERROR: must specify conversion option(s) (IIIF_INGEST_CONVERT_OPTS_nn)")
+		os.Exit(1)
+	}
+
+	// ensure we have the default value
+	_, haveDefault := cfg.ConvertOptions["*"]
+	if haveDefault == false {
+		log.Printf("[main] ERROR: must specify default conversion option(s) (IIIF_INGEST_CONVERT_OPTS_nn)")
+		os.Exit(1)
+	}
+
+	if len(cfg.InputNameRegex) == 0 {
+		log.Printf("[main] ERROR: must specify name map value(s) (IIIF_INGEST_NAME_MAP_nn)")
+		os.Exit(1)
 	}
 
 	// validate output target values

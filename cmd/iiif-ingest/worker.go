@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"time"
 
@@ -129,8 +130,18 @@ func convertFile(workerId int, config ServiceConfig, bucketKey string, inputFile
 	_ = f.Close()
 	outputFile := f.Name()
 
+	// determine the convert options
+	fileExt := path.Ext(bucketKey)
+	options, ok := config.ConvertOptions[fileExt]
+	if ok == true {
+		log.Printf("[worker %d] DEBUG: using custom conversion options for [%s] files", workerId, fileExt)
+	} else {
+		log.Printf("[worker %d] DEBUG: no custom conversion options, using default ones", workerId)
+		options, _ = config.ConvertOptions["*"]
+	}
+
 	// do the conversion
-	params := strings.Split(config.ConvertOptions, " ")
+	params := strings.Split(options, " ")
 	var cmd *exec.Cmd
 	switch len(params) {
 	case 0:

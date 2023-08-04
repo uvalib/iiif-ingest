@@ -8,9 +8,7 @@ import (
 	"github.com/uvalib/virgo4-sqs-sdk/awssqs"
 )
 
-//
 // main entry point
-//
 func main() {
 
 	log.Printf("[main] ===> %s service staring up (version: %s) <===", os.Args[0], Version())

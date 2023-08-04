@@ -1,24 +1,37 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 )
 
-// ServiceConfig defines all of the service configuration parameters
+var maxNameRegex = 32
+
+// ServiceConfig defines all the service configuration parameters
 type ServiceConfig struct {
-	InQueueName        string // SQS queue name for inbound documents
-	PollTimeOut        int64  // the SQS queue timeout (in seconds)
-	LocalWorkDir       string // the local work directory
-	WorkerQueueSize    int    // the inbound message queue size to feed the workers
-	Workers            int    // the number of worker processes
-	ConvertBinary      string // the conversion binary
-	ConvertSuffix      string // the suffix of converyed files
-	ConvertOptions     string // the conversion options
-	ConvertDir         string // the conversion directory
-	DeleteAfterConvert bool   // delete the bucket object after conversion
-	FailOnOverwrite    bool   // fail if the converted file will overwrite an existing one
+
+	// service configuration
+	InQueueName     string // SQS queue name for inbound documents
+	PollTimeOut     int64  // the SQS queue timeout (in seconds)
+	LocalWorkDir    string // the local work directory
+	WorkerQueueSize int    // the inbound message queue size to feed the workers
+	Workers         int    // the number of worker processes
+
+	// conversion configuration
+	ConvertBinary  string // the conversion binary
+	ConvertSuffix  string // the suffix of converyed files
+	ConvertOptions string // the conversion options
+	DeleteSource   bool   // delete the bucket object after conversion
+
+	// output/naming configuration
+	OutputRoot         string   // the output root directory
+	OutputBucket       string   // the output bucket
+	InputNameRegex     []string // the list of possible input name regular expressions
+	OutputNameTemplate []string // the list of corresponding output name templates
 }
 
 func envWithDefault(env string, defaultValue string) string {
@@ -76,6 +89,7 @@ func LoadConfiguration() *ServiceConfig {
 
 	var cfg ServiceConfig
 
+	// service configuration
 	cfg.InQueueName = ensureSetAndNonEmpty("IIIF_INGEST_IN_QUEUE")
 	cfg.PollTimeOut = int64(envToInt("IIIF_INGEST_QUEUE_POLL_TIMEOUT"))
 	cfg.LocalWorkDir = ensureSetAndNonEmpty("IIIF_INGEST_WORK_DIR")
@@ -86,22 +100,66 @@ func LoadConfiguration() *ServiceConfig {
 	cfg.ConvertBinary = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_BIN")
 	cfg.ConvertSuffix = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_SUFFIX")
 	cfg.ConvertOptions = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_OPTS")
-	cfg.ConvertDir = ensureSetAndNonEmpty("IIIF_INGEST_CONVERT_DIR")
-	cfg.DeleteAfterConvert = envToBoolean("IIIF_INGEST_DELETE_AFTER_CONVERT")
-	cfg.FailOnOverwrite = envToBoolean("IIIF_INGEST_FAIL_ON_OVERWRITE")
+	cfg.DeleteSource = envToBoolean("IIIF_INGEST_DELETE_SOURCE")
 
-	log.Printf("[CONFIG] InQueueName          = [%s]", cfg.InQueueName)
-	log.Printf("[CONFIG] PollTimeOut          = [%d]", cfg.PollTimeOut)
-	log.Printf("[CONFIG] LocalWorkDir         = [%s]", cfg.LocalWorkDir)
-	log.Printf("[CONFIG] WorkerQueueSize      = [%d]", cfg.WorkerQueueSize)
-	log.Printf("[CONFIG] Workers              = [%d]", cfg.Workers)
+	// output configuration
+	cfg.OutputRoot = envWithDefault("IIIF_INGEST_OUTPUT_ROOT", "")
+	cfg.OutputBucket = envWithDefault("IIIF_INGEST_OUTPUT_BUCKET", "")
 
-	log.Printf("[CONFIG] ConvertBinary        = [%s]", cfg.ConvertBinary)
-	log.Printf("[CONFIG] ConvertSuffix        = [%s]", cfg.ConvertSuffix)
-	log.Printf("[CONFIG] ConvertOptions       = [%s]", cfg.ConvertOptions)
-	log.Printf("[CONFIG] ConvertDir           = [%s]", cfg.ConvertDir)
-	log.Printf("[CONFIG] DeleteAfterConvert   = [%t]", cfg.DeleteAfterConvert)
-	log.Printf("[CONFIG] FailOnOverwrite      = [%t]", cfg.FailOnOverwrite)
+	for ix := 0; ix < maxNameRegex; ix++ {
+		env := fmt.Sprintf("IIIF_INGEST_NAME_MAP_%02d", ix+1)
+		val, set := os.LookupEnv(env)
+		if set == true {
+			s := strings.Split(val, "=")
+			if len(s) == 2 {
+				// ensure the regex compiles
+				_, err := regexp.Compile(strings.TrimSpace(s[0]))
+				if err != nil {
+					log.Printf("[main] ERROR: incorrectly formatted '%s' value (%s)", env, val)
+					os.Exit(1)
+				}
+				cfg.InputNameRegex = append(cfg.InputNameRegex, strings.TrimSpace(s[0]))
+				cfg.OutputNameTemplate = append(cfg.OutputNameTemplate, strings.TrimSpace(s[1]))
+			} else {
+				log.Printf("[main] ERROR: incorrectly formatted '%s' value (%s)", env, val)
+				os.Exit(1)
+			}
+		} else {
+			break
+		}
+	}
+
+	// service configuration
+	log.Printf("[config] InQueueName          = [%s]", cfg.InQueueName)
+	log.Printf("[config] PollTimeOut          = [%d]", cfg.PollTimeOut)
+	log.Printf("[config] LocalWorkDir         = [%s]", cfg.LocalWorkDir)
+	log.Printf("[config] WorkerQueueSize      = [%d]", cfg.WorkerQueueSize)
+	log.Printf("[config] Workers              = [%d]", cfg.Workers)
+
+	// conversion configuration
+	log.Printf("[config] ConvertBinary        = [%s]", cfg.ConvertBinary)
+	log.Printf("[config] ConvertSuffix        = [%s]", cfg.ConvertSuffix)
+	log.Printf("[config] ConvertOptions       = [%s]", cfg.ConvertOptions)
+	log.Printf("[config] DeleteSource         = [%t]", cfg.DeleteSource)
+
+	// output configuration
+	log.Printf("[config] OutputRoot           = [%s]", cfg.OutputRoot)
+	log.Printf("[config] OutputBucket         = [%s]", cfg.OutputBucket)
+
+	for ix, _ := range cfg.InputNameRegex {
+		log.Printf("[config] Input name map %02d    = [%s -> %s]", ix+1, cfg.InputNameRegex[ix], cfg.OutputNameTemplate[ix])
+	}
+
+	// validate output target values
+	if len(cfg.OutputRoot) == 0 && len(cfg.OutputBucket) == 0 {
+		log.Printf("[main] ERROR: must specify output root (IIIF_INGEST_OUTPUT_ROOT) or output bucket (IIIF_INGEST_OUTPUT_BUCKET)")
+		os.Exit(1)
+	}
+
+	if len(cfg.OutputRoot) != 0 && len(cfg.OutputBucket) != 0 {
+		log.Printf("[main] ERROR: cannot specify output root (IIIF_INGEST_OUTPUT_ROOT) and output bucket (IIIF_INGEST_OUTPUT_BUCKET)")
+		os.Exit(1)
+	}
 
 	return &cfg
 }

@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 
@@ -23,9 +22,6 @@ type Notify struct {
 	ReceiptHandle awssqs.ReceiptHandle // the inbound message receipt handle (so we can delete it)
 }
 
-// special case handling name
-var archivesName = "archives"
-
 func worker(workerId int, config ServiceConfig, sqsSvc awssqs.AWS_SQS, s3Svc uva_s3.UvaS3, queue awssqs.QueueHandle, notifies <-chan Notify) {
 
 	var notify Notify
@@ -34,10 +30,10 @@ func worker(workerId int, config ServiceConfig, sqsSvc awssqs.AWS_SQS, s3Svc uva
 		notify = <-notifies
 
 		start := time.Now()
-		log.Printf("[worker %d] INFO: processing %s", workerId, notify.BucketKey)
+		log.Printf("[worker %d] INFO: begin processing %s", workerId, notify.BucketKey)
 
 		// validate the inbound file naming convention
-		err := validateInputName(workerId, notify.BucketKey)
+		err := validateInputName(workerId, config, notify.BucketKey)
 		if err != nil {
 			log.Printf("[worker %d] ERROR: input name %s is invalid (%s)", workerId, notify.BucketKey, err.Error())
 			continue
@@ -45,16 +41,6 @@ func worker(workerId int, config ServiceConfig, sqsSvc awssqs.AWS_SQS, s3Svc uva
 
 		// create the output file name
 		outputFile := generateOutputName(workerId, config, notify.BucketKey)
-
-		// if we should fail when a converted file already exists
-		if config.FailOnOverwrite == true {
-			// check to see if the file already exists
-			_, e := os.Stat(outputFile)
-			if e == nil {
-				log.Printf("[worker %d] ERROR: %s already exists", workerId, outputFile)
-				continue
-			}
-		}
 
 		// create the target directory tree
 		err = createOutputDirectory(workerId, outputFile)
@@ -95,7 +81,7 @@ func worker(workerId int, config ServiceConfig, sqsSvc awssqs.AWS_SQS, s3Svc uva
 		}
 
 		// should we delete the bucket contents
-		if config.DeleteAfterConvert == true {
+		if config.DeleteSource == true {
 			// bucket file has been processed, remove it
 			log.Printf("[worker %d] INFO: removing S3 object %s/%s", workerId, notify.SourceBucket, notify.BucketKey)
 			err = s3Svc.DeleteObject(o)
@@ -204,68 +190,6 @@ func deleteMessage(workerId int, aws awssqs.AWS_SQS, queue awssqs.QueueHandle, r
 	return nil
 }
 
-// generate the output file name based on the input file and configuration
-func generateOutputName(workerId int, config ServiceConfig, inputName string) string {
-
-	// split into path and filename components
-	dirName := path.Dir(inputName)
-	fileName := path.Base(inputName)
-
-	// determine the converted filename
-	fileExt := path.Ext(fileName)
-	convertName := fmt.Sprintf("%s.%s", strings.TrimSuffix(fileName, fileExt), config.ConvertSuffix)
-
-	// split the path components (we have already validated they are correct)
-	dirs := strings.Split(dirName, "/")
-
-	// special case
-	if dirs[1] == archivesName {
-		dirTree := makeDirTree(workerId, convertName)
-		return fmt.Sprintf("%s/%s/%s/%s", config.ConvertDir, dirs[1], dirTree, convertName[1:])
-	} else {
-		return fmt.Sprintf("%s/%s/%s", config.ConvertDir, dirs[1], convertName)
-	}
-}
-
-// validate the input file name
-//
-// the rules for validation are as follows:
-// - must contain 2 path components
-// - if second path component is "archive":
-//   - filename must match regex xxx
-// otherwise
-//   - filename can be anything
-func validateInputName(workerId int, inputName string) error {
-
-	log.Printf("[worker %d] DEBUG: validating input name %s", workerId, inputName)
-
-	// split into path and filename components
-	dirName := path.Dir(inputName)
-	fileName := path.Base(inputName)
-
-	// ensure we have 2 path components
-	dirs := strings.Split(dirName, "/")
-	if len(dirs) != 2 {
-		return fmt.Errorf("incorrect path specification for input file (must be 2 deep)")
-	}
-
-	// if we have specific filename validation rules
-	if dirs[1] == archivesName {
-		fileExt := path.Ext(fileName)
-		noSuffix := strings.TrimSuffix(fileName, fileExt)
-		matched, err := regexp.MatchString("^c\\d{4,7}$", noSuffix)
-		if err != nil {
-			return err
-		}
-		if matched == false {
-			return fmt.Errorf("%s filename is invalid; must match regex ^c\\d{4,7}$", archivesName)
-		}
-	}
-
-	// all is well
-	return nil
-}
-
 // create the output directory
 func createOutputDirectory(workerId int, outputName string) error {
 
@@ -282,50 +206,6 @@ func createOutputDirectory(workerId int, outputName string) error {
 	}
 
 	return nil
-}
-
-// make the target directory tree, we have already validate the filename so know this is safe
-func makeDirTree(workerId int, fileName string) string {
-	fileExt := path.Ext(fileName)
-	noSuffix := strings.TrimSuffix(fileName, fileExt)
-	switch len(noSuffix) {
-	case 5:
-		return fmt.Sprintf("%c%c/%c%c",
-			fileName[1], fileName[2], fileName[3], fileName[4])
-	case 6:
-		return fmt.Sprintf("%c%c/%c%c/%c",
-			fileName[1], fileName[2], fileName[3], fileName[4], fileName[5])
-	case 7:
-		return fmt.Sprintf("%c%c/%c%c/%c%c",
-			fileName[1], fileName[2], fileName[3], fileName[4], fileName[5], fileName[6])
-	case 8:
-		return fmt.Sprintf("%c%c/%c%c/%c%c/%c",
-			fileName[1], fileName[2], fileName[3], fileName[4], fileName[5], fileName[6], fileName[7])
-	}
-
-	// should never happen
-	fatalIfError(fmt.Errorf("violated invariant with file %s", fileName))
-	return "" // should not need this for the compiler
-}
-
-// copy the file from the old location to the new one... we cannot use os.Rename as this only works withing a
-// single device
-func copyFile(workerId int, oldLocation, newLocation string) error {
-
-	log.Printf("[worker %d] INFO: copying %s to %s", workerId, oldLocation, newLocation)
-
-	i, err := os.Open(oldLocation)
-	if err != nil {
-		return err
-	}
-	defer i.Close()
-	o, err := os.Create(newLocation)
-	if err != nil {
-		return err
-	}
-	defer o.Close()
-	_, err = o.ReadFrom(i)
-	return err
 }
 
 //

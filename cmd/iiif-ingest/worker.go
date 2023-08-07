@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -52,13 +51,13 @@ func worker(workerId int, config ServiceConfig, sqsSvc awssqs.AWS_SQS, s3Svc uva
 		}
 
 		// create temp file
-		tmp, err := ioutil.TempFile(config.LocalWorkDir, "")
+		tmp, err := os.CreateTemp(config.LocalWorkDir, "*")
 		if err != nil {
 			log.Printf("[worker %d] ERROR: failed to create temp file (%s)", workerId, err.Error())
 			continue
 		}
 
-		tmp.Close()
+		_ = tmp.Close()
 		downloadFile := tmp.Name()
 
 		// download the file
@@ -123,7 +122,7 @@ func worker(workerId int, config ServiceConfig, sqsSvc awssqs.AWS_SQS, s3Svc uva
 func convertFile(workerId int, config ServiceConfig, bucketKey string, inputFile string) (string, error) {
 
 	// create a temp file
-	f, err := ioutil.TempFile(config.LocalWorkDir, fmt.Sprintf("*.%s", config.ConvertSuffix))
+	f, err := os.CreateTemp(config.LocalWorkDir, fmt.Sprintf("*.%s", config.ConvertSuffix))
 	if err != nil {
 		return "", err
 	}

@@ -12,13 +12,13 @@ RUN make linux
 #
 # build the target container
 #
-FROM public.ecr.aws/docker/library/debian:bullseye-slim
+FROM public.ecr.aws/docker/library/alpine:3.18
 
 # update the packages
-RUN apt-get -y update && apt-get -y upgrade && apt-get -y install procps htop ca-certificates imagemagick-6.q16
+RUN apk update && apk upgrade && apk add bash tzdata ca-certificates curl exiftool imagemagick && rm -rf /var/cache/apk/*
 
 # Create the run user and group
-RUN groupadd -g 18570 docker && useradd -u 1984 -g docker docker
+RUN addgroup --gid 18570 docker && adduser --uid 1984 docker -G docker -D
 
 # set the timezone appropriatly
 ENV TZ=UTC

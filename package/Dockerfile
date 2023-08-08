@@ -15,7 +15,7 @@ RUN make linux
 FROM public.ecr.aws/docker/library/alpine:3.18
 
 # update the packages
-RUN apk update && apk upgrade && apk add bash tzdata ca-certificates curl exiftool imagemagick && rm -rf /var/cache/apk/*
+RUN apk update && apk upgrade && apk add bash tzdata ca-certificates curl exiftool libgomp libgcc openjpeg && rm -rf /var/cache/apk/*
 
 # Create the run user and group
 RUN addgroup --gid 18570 docker && adduser --uid 1984 docker -G docker -D
@@ -39,6 +39,11 @@ CMD scripts/entry.sh
 COPY package/data/container_bash_profile /home/docker/.profile
 COPY package/scripts/entry.sh $APP_HOME/scripts/entry.sh
 COPY --from=builder /build/bin/iiif-ingest.linux $APP_HOME/bin/iiif-ingest
+
+# image magick support
+COPY distro/ImageMagick-7.x/convert /usr/local/bin
+COPY distro/ImageMagick-7.x/libMagickCore-7.Q16HDRI.so.10 /usr/local/lib
+COPY distro/ImageMagick-7.x/libMagickWand-7.Q16HDRI.so.10 /usr/local/lib
 
 # Ensure permissions are correct
 RUN chown docker:docker /home/docker/.profile $APP_HOME/scripts/entry.sh $APP_HOME/bin/iiif-ingest && chmod 755 /home/docker/.profile $APP_HOME/scripts/entry.sh $APP_HOME/bin/iiif-ingest

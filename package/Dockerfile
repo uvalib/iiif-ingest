@@ -1,7 +1,7 @@
 #
 # build the target application
 #
-FROM public.ecr.aws/docker/library/golang:1.20-alpine3.18 as builder
+FROM public.ecr.aws/docker/library/golang:1.21.0-alpine3.18 as builder
 RUN apk update && apk upgrade && apk add make
 
 WORKDIR /build
@@ -18,8 +18,9 @@ FROM public.ecr.aws/docker/library/alpine:3.18
 RUN apk update && apk upgrade && apk add bash tzdata ca-certificates curl exiftool && rm -rf /var/cache/apk/*
 
 # image magick support
-RUN apk add fftw-double-libs fontconfig freetype lcms2 libbz2 libgcc libgomp libheif libjxl libltdl libraw libx11 libxext libxml2 openjpeg pango tiff zlib
-COPY distro/magick /usr/local/bin
+RUN apk add fftw-double-libs fontconfig freetype ghostscript ghostscript-fonts lcms2 libbz2 libgcc libgomp libheif libjxl libltdl libraw libx11 libxext libxml2 openjpeg pango tiff zlib
+COPY distro/bin/magick /usr/local/bin
+COPY distro/etc/ /usr/local/etc
 RUN ln -s /usr/local/bin/magick /usr/local/bin/convert
 
 # Create the run user and group

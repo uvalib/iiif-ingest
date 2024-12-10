@@ -1,7 +1,7 @@
 #
 # build the target application
 #
-FROM public.ecr.aws/docker/library/golang:1.22.3-alpine3.20 as builder
+FROM public.ecr.aws/docker/library/golang:1.23.4-alpine3.21 AS builder
 
 # update the packages
 RUN apk update && apk upgrade && apk add make
@@ -14,7 +14,7 @@ RUN make linux
 #
 # build the target container
 #
-FROM public.ecr.aws/docker/library/alpine:3.20
+FROM public.ecr.aws/docker/library/alpine:3.21
 
 # update the packages
 RUN apk update && apk upgrade && apk add bash tzdata ca-certificates curl exiftool && rm -rf /var/cache/apk/*
@@ -33,7 +33,7 @@ ENV TZ=UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Specify home 
-ENV APP_HOME /iiif-ingest
+ENV APP_HOME=/iiif-ingest
 WORKDIR $APP_HOME
 
 # Create necessary directories
@@ -41,7 +41,7 @@ RUN mkdir -p $APP_HOME $APP_HOME/bin $APP_HOME/scripts
 RUN chown -R docker $APP_HOME && chgrp -R docker $APP_HOME
 
 # run command
-CMD scripts/entry.sh
+ENTRYPOINT ["scripts/entry.sh"]
 
 # Move in necessary assets
 COPY package/data/container_bash_profile /home/docker/.profile

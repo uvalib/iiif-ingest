@@ -41,7 +41,7 @@ RUN mkdir -p $APP_HOME $APP_HOME/bin $APP_HOME/scripts
 RUN chown -R docker $APP_HOME && chgrp -R docker $APP_HOME
 
 # run command
-ENTRYPOINT ["scripts/entry.sh"]
+CMD ["scripts/entry.sh"]
 
 # Move in necessary assets
 COPY package/data/container_bash_profile /home/docker/.profile
